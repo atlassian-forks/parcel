@@ -102,6 +102,9 @@ export default class BundleGraph {
     this._bundleContentHashes = bundleContentHashes;
   }
 
+  /**
+   * Produce a BundleGraph from an AssetGraph by removing asset groups.
+   */
   static fromAssetGraph(
     assetGraph: AssetGraph,
     publicIdByAssetId: Map<string, string> = new Map(),
@@ -182,6 +185,10 @@ export default class BundleGraph {
     });
   }
 
+  /**
+   * Recursively add an asset and its dependencies to a bundle. Stops at
+   * bundle group boundaries.
+   */
   addAssetGraphToBundle(asset: Asset, bundle: Bundle) {
     // The root asset should be reached directly from the bundle in traversal.
     // Its children will be traversed from there.
@@ -212,6 +219,10 @@ export default class BundleGraph {
     this._bundleContentHashes.delete(bundle.id);
   }
 
+  /**
+   * Adds an asset as an entry to a bundle. Entry assets are executed immediately
+   * when the bundle is loaded.
+   */
   addEntryToBundle(asset: Asset, bundle: Bundle) {
     this.addAssetGraphToBundle(asset, bundle);
     if (!bundle.entryAssetIds.includes(asset.id)) {
@@ -219,13 +230,18 @@ export default class BundleGraph {
     }
   }
 
+  /**
+   * Marks an async dependency as internally resolvable from this bundle. While
+   * other bundles may load an external bundle with the asset's resolution, this
+   * bundle will not.
+   */
   internalizeAsyncDependency(bundle: Bundle, dependency: Dependency) {
     if (!dependency.isAsync) {
       throw new Error('Expected an async dependency');
     }
 
     this._graph.addEdge(bundle.id, dependency.id, 'internal_async');
-    this.removeExternalDependency(bundle, dependency);
+    this._removeExternalDependency(bundle, dependency);
   }
 
   isDependencyDeferred(dependency: Dependency): boolean {
@@ -234,6 +250,9 @@ export default class BundleGraph {
     return !!node.hasDeferred;
   }
 
+  /**
+   * @return Bundles that load this bundle asynchronously.
+   */
   getParentBundlesOfBundleGroup(bundleGroup: BundleGroup): Array<Bundle> {
     return this._graph
       .getNodesConnectedTo(
@@ -247,6 +266,11 @@ export default class BundleGraph {
       });
   }
 
+  /**
+   * @return Either an asset or a bundle group, marked by the 'type' field. If an asset,
+   *         the asset is already available. If a bundle group, the bundle group must be
+   *         loaded before the asset is available.
+   */
   resolveAsyncDependency(
     dependency: Dependency,
     bundle: ?Bundle,
@@ -316,6 +340,10 @@ export default class BundleGraph {
     }
   }
 
+  /**
+   * Recursively remove an asset and its dependencies to a bundle. Stops at
+   * bundle group boundaries.
+   */
   removeAssetGraphFromBundle(asset: Asset, bundle: Bundle) {
     // Remove all contains edges from the bundle to the nodes in the asset's
     // subgraph.
@@ -350,7 +378,7 @@ export default class BundleGraph {
       }
 
       if (node.type === 'dependency') {
-        this.removeExternalDependency(bundle, node.value);
+        this._removeExternalDependency(bundle, node.value);
       }
     }, nullthrows(this._graph.getNode(asset.id)));
 
@@ -368,6 +396,10 @@ export default class BundleGraph {
     this._bundleContentHashes.delete(bundle.id);
   }
 
+  /**
+   * Remove a bundle from the bundle graph. Remove its bundle group if it is
+   * the only bundle in the group.
+   */
   removeBundle(bundle: Bundle) {
     // Remove bundle node if it no longer has any entry assets
     let bundleNode = nullthrows(this._graph.getNode(bundle.id));
@@ -427,7 +459,7 @@ export default class BundleGraph {
     );
   }
 
-  removeExternalDependency(bundle: Bundle, dependency: Dependency) {
+  _removeExternalDependency(bundle: Bundle, dependency: Dependency) {
     for (let bundleGroupNode of this._graph
       .getNodesConnectedFrom(nullthrows(this._graph.getNode(dependency.id)))
       .filter(node => node.type === 'bundle_group')) {

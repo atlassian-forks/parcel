@@ -119,6 +119,11 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     return bundleGroup;
   }
 
+  /**
+   * Remove a bundle group from the graph. For each bundle currently in the
+   * group, if this is the only group it belongs to, remove the bundle from
+   * the graph as well.
+   */
   removeBundleGroup(bundleGroup: BundleGroup): void {
     this.#graph.removeBundleGroup(bundleGroup);
   }
@@ -220,6 +225,7 @@ export default class MutableBundleGraph extends BundleGraph<IBundle>
     );
   }
 
+  /** @return the bundles in the graph that contain the dependency */
   getDependencyAssets(dependency: IDependency): Array<IAsset> {
     return this.#graph
       .getDependencyAssets(dependencyToInternalDependency(dependency))
