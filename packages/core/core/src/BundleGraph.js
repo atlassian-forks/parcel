@@ -62,14 +62,27 @@ type SerializedBundleGraph = {|
   publicIdByAssetId: Map<string, string>,
 |};
 
+/**
+ * Stores assets, dependencies, bundle groups, bundles, and the relationships between them.
+ * The BundleGraph is passed to plugins wrapped in a MutableBundleGraph during bundling,
+ * and is passed to packagers and optimizers wrapped in the public BundleGraph object, both
+ * of which implement public api for this structure. This is the internal structure.
+ */
 export default class BundleGraph {
+  /** A set of all existing concise asset ids present in the BundleGraph */
   _assetPublicIds: Set<string>;
+  /** Maps full asset ids (currently 32-character strings) to concise ids (minimum of 5 character strings) */
   _publicIdByAssetId: Map<string, string>;
-  // TODO: These hashes are being invalidated in mutative methods, but this._graph is not a private
-  // property so it is possible to reach in and mutate the graph without invalidating these hashes.
-  // It needs to be exposed in BundlerRunner for now based on how applying runtimes works and the
-  // BundlerRunner takes care of invalidating hashes when runtimes are applied, but this is not ideal.
+  /**
+   * A cache of bundle hashes by bundle id.
+   *
+   * TODO: These hashes are being invalidated in mutative methods, but this._graph is not a private
+   * property so it is possible to reach in and mutate the graph without invalidating these hashes.
+   * It needs to be exposed in BundlerRunner for now based on how applying runtimes works and the
+   * BundlerRunner takes care of invalidating hashes when runtimes are applied, but this is not ideal.
+   */
   _bundleContentHashes: Map<string, string>;
+  /** The internal core Graph structure */
   _graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>;
 
   constructor({
